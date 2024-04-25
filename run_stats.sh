@@ -110,7 +110,7 @@ function compute_timeline_families() {
     # Expects the full JSON file (data.json)
     jq -r '.[] | .family as $family | .transactions[] | [$family, .time, .amount, .amountUSD] | @csv' "$1" | tr -d '"' |
         awk -F ',' 'BEGIN {
-                        printf "Family\tYear-Month\tCount\tAmount (BTC)\tAmount (USD)\n";
+                        printf "0.Family\tTime Period\tCount\tAmount (BTC)\tAmount (USD)\n";
                     }
                     {
                         # More on 2d arrays: https://www.gnu.org/software/gawk/manual/html_node/Multidimensional.html
@@ -134,9 +134,16 @@ function compute_timeline_families() {
                         }
                     }
                     ' |
-                    sort -t $'\t' -k 2,2 |
+                    sort -t $'\t' -k 2,2 -g |
                     sort -t $'\t' -k 1,1 -s |
-                    column -t -s $'\t'
+                    sed 's/0.Family/Family/'
+}
+
+function print_timeline_families() {
+    # Expects the output of the compute_timeline_families function
+    print_title "Timeline of transactions per families (months)"
+    timeline_families_pretty=$(echo -e "$1" | column -t -s $'\t')
+    print_misc "$timeline_families_pretty"
 }
 
 # Check if exactly one argument has been provided
@@ -151,20 +158,22 @@ ransomwhere="$1"
 echo -e "\e[1;92mWelcome to $0! How about this? \e[0m"
 
 # Print general statistics: total number of addresses, total number of transactions, total payment sum (BTC and USD)
-print_general_stats "$ransomwhere"
+# print_general_stats "$ransomwhere"
 
 # Print the payment timeline per year
-timeline_years=$(compute_timeline_years "$ransomwhere")
-print_timeline_years "$timeline_years"
-echo -e "$timeline_years" >| timeline_years.txt
+# timeline_years=$(compute_timeline_years "$ransomwhere")
+# print_timeline_years "$timeline_years"
+# echo -e "$timeline_years" >| timeline_years.txt
 
 # Print the payment timeline per month
-timeline_months=$(compute_timeline_months "$ransomwhere")
-print_timeline_months "$timeline_months"
-echo -e "$timeline_months" >| timeline_months.txt
+# timeline_months=$(compute_timeline_months "$ransomwhere")
+# print_timeline_months "$timeline_months"
+# echo -e "$timeline_months" >| timeline_months.txt
 
-# WIP
 # Print the timeline of ransomware families per month
-# compute_timeline_families "$ransomwhere"
+timeline_families=$(compute_timeline_families "$ransomwhere")
+print_timeline_families "$timeline_families"
+# echo -e "$timeline_families" >| timeline_families.txt
 
-echo -e "\e[1;92mHave a nice day!\e[0m"
+echo -e "\e[1;95mThis script has been sponsored by Smaragdakis et al.!\e[0m"
+echo -e "\e[1;95mHave a nice day!\e[0m"
