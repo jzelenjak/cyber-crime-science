@@ -9,7 +9,7 @@ import matplotlib.ticker as mt
 
 
 if len(sys.argv) != 2:
-    print(f"Usage: {sys.argv[0]} stuff.txt")
+    print(f"Usage: {sys.argv[0]} timeline_years.txt")
     exit(1)
 
 
@@ -23,29 +23,29 @@ with open(sys.argv[1], "r") as file:
         parts = line.split("\t")
         years.append(datetime.datetime.strptime(parts[0], dateformat))
         count.append(int(parts[1]))
-        amount_btc.append(int(parts[2]) / 1000000000)
+        amount_btc.append(float(parts[2]))
         amount_usd.append(float(parts[3]) / 1000000)
 
 
 fig, (ax1, ax2, ax3) = plt.subplots(3)
-fig.suptitle("Timeline of transactions per year")
+fig.suptitle("Timeline of ransom transactions per year")
 
 ax1.plot(years, count, color='blue')
-ax1.set_title("Number of transactions per year")
+ax1.set_title("Number of transactions")
 ax1.xaxis.set_major_formatter(md.DateFormatter(dateformat))
 ax1.xaxis.set_major_locator(md.YearLocator())
 ax1.yaxis.set_major_formatter(formatter)
 ax1.grid()
 
 ax2.plot(years, amount_btc, color='green')
-ax2.set_title("Payment sum per year (in billion BTC)")
+ax2.set_title("Payment sum (in BTC)")
 ax2.xaxis.set_major_formatter(md.DateFormatter(dateformat))
 ax2.xaxis.set_major_locator(md.YearLocator())
 ax2.yaxis.set_major_formatter(formatter)
 ax2.grid()
 
 ax3.plot(years, amount_usd, color='red')
-ax3.set_title("Payment sum per year (in million USD)")
+ax3.set_title("Payment sum (in million USD)")
 ax3.xaxis.set_major_formatter(md.DateFormatter(dateformat))
 ax3.xaxis.set_major_locator(md.YearLocator())
 ax3.yaxis.set_major_formatter(formatter)
