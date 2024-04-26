@@ -165,22 +165,22 @@ ransomwhere="$1"
 echo -e "\e[1;92mWelcome to $0! How about this? \e[0m"
 
 # Print general statistics: total number of addresses, total number of transactions, total payment sum (BTC and USD)
-# print_general_stats "$ransomwhere"
+print_general_stats "$ransomwhere"
 
 # Print the payment timeline per year
-# timeline_years=$(compute_timeline_years "$ransomwhere")
-# print_timeline_years "$timeline_years"
+timeline_years=$(compute_timeline_years "$ransomwhere")
+print_timeline_years "$timeline_years"
 # echo -e "$timeline_years" >| timeline_years.csv
 
 # Print the payment timeline per month
-# timeline_months=$(compute_timeline_months "$ransomwhere")
-# print_timeline_months "$timeline_months"
+timeline_months=$(compute_timeline_months "$ransomwhere")
+print_timeline_months "$timeline_months"
 # echo -e "$timeline_months" >| timeline_months.csv
 
 # Print the timeline of ransomware families per month
 timeline_families=$(compute_timeline_families "$ransomwhere")
 print_timeline_families "$timeline_families"
-echo -e "$timeline_families" >| timeline_families.csv
+# echo -e "$timeline_families" >| timeline_families.csv
 
 echo -e "\e[1;95mThis script has been sponsored by Smaragdakis et al.!\e[0m"
 echo -e "\e[1;95mHave a nice day!\e[0m"
