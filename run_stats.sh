@@ -117,7 +117,7 @@ function compute_timeline_families() {
     # Expects the full JSON file (data.json)
     jq -r '.[] | .family as $family | .transactions[] | [$family, .time, .amount, .amountUSD] | @csv' "$1" | tr -d '"' |
         awk -F ',' 'BEGIN {
-                        printf "0.Family\tTime Period\tCount\tAmount (BTC)\tAmount (USD)\n";
+                        printf "0.Family,Month,Count,Sum (BTC),Sum (USD)\n";
                     }
                     {
                         # More on 2d arrays: https://www.gnu.org/software/gawk/manual/html_node/Multidimensional.html
@@ -128,7 +128,7 @@ function compute_timeline_families() {
                         sum_usd[$1,$2] += $4;
                     }
                     END {
-                        fmt_str =  "%s\t%s\t%d\t%f\t%f\n";
+                        fmt_str =  "%s,%s,%d,%f,%f\n";
 
                         for (combined in count) {
                             split(combined, separate, SUBSEP);
@@ -141,15 +141,15 @@ function compute_timeline_families() {
                         }
                     }
                     ' |
-                    sort -t $'\t' -k 2,2 -g |
-                    sort -t $'\t' -k 1,1 -s |
+                    sort -t ',' -k 2,2 -g |
+                    sort -t ',' -k 1,1 -s |
                     sed 's/0.Family/Family/'
 }
 
 function print_timeline_families() {
     # Expects the output of the compute_timeline_families function
-    print_title "Timeline of transactions per families (months)"
-    timeline_families_pretty=$(echo -e "$1" | column -t -s $'\t')
+    print_title "Timeline of transactions per families"
+    timeline_families_pretty=$(echo -e "$1" | tr ',' '\t' | column -t -s $'\t')
     print_misc "$timeline_families_pretty"
 }
 
@@ -178,9 +178,9 @@ echo -e "\e[1;92mWelcome to $0! How about this? \e[0m"
 # echo -e "$timeline_months" >| timeline_months.csv
 
 # Print the timeline of ransomware families per month
-# timeline_families=$(compute_timeline_families "$ransomwhere")
-# print_timeline_families "$timeline_families"
-# echo -e "$timeline_families" >| timeline_families.csv
+timeline_families=$(compute_timeline_families "$ransomwhere")
+print_timeline_families "$timeline_families"
+echo -e "$timeline_families" >| timeline_families.csv
 
 echo -e "\e[1;95mThis script has been sponsored by Smaragdakis et al.!\e[0m"
 echo -e "\e[1;95mHave a nice day!\e[0m"
