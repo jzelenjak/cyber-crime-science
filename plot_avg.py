@@ -7,8 +7,11 @@ import matplotlib.dates as md
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mt
 
+
+# The file is assumed to be comma-separated (i.e. in the csv format)
+file_separator = ","
 if len(sys.argv) != 2:
-    print(f"Usage: {sys.argv[0]} <timeline_months.txt|timeline_years.txt>")
+    print(f"Usage: {sys.argv[0]} <timeline_months.csv|timeline_years.csv>")
     exit(1)
 
 
@@ -24,10 +27,11 @@ elif "year" in sys.argv[1]:
     date_locator = md.YearLocator(base=1)
     time_period = "year"
 
+scale = "linear"
 time, avg_btc, avg_usd = [], [], []
 with open(sys.argv[1], "r") as file:
     for line in file.readlines()[1:]:
-        parts = line.split("\t")
+        parts = line.split(file_separator)
         count = int(parts[1])
         if count == 0:
             continue
@@ -46,6 +50,7 @@ ax1.xaxis.set_major_formatter(md.DateFormatter(date_format))
 ax1.xaxis.set_major_locator(date_locator)
 ax1.yaxis.set_major_formatter(formatter)
 ax1.tick_params(labelrotation=25)
+ax1.set_yscale(scale)
 ax1.grid()
 
 # Plot average ransom size in USD (per month)
@@ -55,6 +60,7 @@ ax2.xaxis.set_major_formatter(md.DateFormatter(date_format))
 ax2.xaxis.set_major_locator(date_locator)
 ax2.yaxis.set_major_formatter(formatter)
 ax2.tick_params(labelrotation=25)
+ax2.set_yscale(scale)
 ax2.grid()
 
 plt.gcf().set_size_inches(20, 10, forward=True)

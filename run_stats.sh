@@ -43,6 +43,13 @@ function print_general_stats() {
 
     print_title "Total payment sum (USD)"
     print_result $(jq '.[].transactions.[].amountUSD' "$1" | paste -d '+' -s | bc | awk '{ printf "%f", $1; }')
+
+    print_title "Time range of transactions"
+    transactions=$(jq '.[].transactions.[].time' "$1" |
+                    awk '{ $1 = strftime("%Y-%m-%d %H:%M:%S", $1); print $0; }' | sort |
+                    awk 'NR == 1 { print "First transaction: " $0; }; END { print "Last transaction: " $0; }')
+    print_result "$transactions"
+
 }
 
 function compute_timeline_years() {
@@ -50,7 +57,7 @@ function compute_timeline_years() {
     jq -r '.[] | .transactions.[] | [ .time, .amount, .amountUSD ] | @csv' "$1" |
         awk -F',' '
             BEGIN {
-                printf "Year\tCount\tAmount (BTC)\tAmount (USD)\tAverage Ransom (BTC)\tAverage Ransom(USD)\n";
+                printf "Year,Count,Sum (BTC),Sum (USD),Average (BTC),Average (USD)\n";
             }
             {
                 $1 = strftime("%Y", $1);
@@ -62,17 +69,17 @@ function compute_timeline_years() {
                 for (year in count) {
                     avg_btc = sum_btc[year] / count[year];
                     avg_usd = sum_usd[year] / count[year];
-                    fmt_str = "%s\t%d\t%f\t%f\t%f\t%f\n";
+                    fmt_str = "%s,%d,%f,%f,%f,%f\n";
                     printf fmt_str, year, count[year], sum_btc[year], sum_usd[year], avg_btc, avg_usd;
                 }
             }' |
-            sort -t $'\t' -k 1,1 -g
+            sort -t ',' -k 1,1 -g
 }
 
 function print_timeline_years() {
     # Expects the output of the compute_timeline_years function
     print_title "Timeline of transactions (years)"
-    timeline_years_pretty=$(echo -e "$1" | column -t -s $'\t')
+    timeline_years_pretty=$(echo -e "$1" | tr ',' '\t' | column -t -s $'\t')
     print_result "$timeline_years_pretty"
 }
 
@@ -81,7 +88,7 @@ function compute_timeline_months() {
     jq -r '.[] | .transactions.[] | [ .time, .amount, .amountUSD ] | @csv' "$1" |
         awk -F',' '
             BEGIN {
-                printf "Year-Month\tCount\tAmount (BTC)\tAmount (USD)\tAverage Ransom (BTC)\tAverage Ransom (USD)\n";
+                printf "Month,Count,Sum (BTC),Sum (USD),Average (BTC),Average (USD)\n";
             }
             {
                 $1 = strftime("%Y-%m", $1);
@@ -92,16 +99,16 @@ function compute_timeline_months() {
                 for (time_period in count) {
                     avg_btc = sum_btc[time_period] / count[time_period];
                     avg_usd = sum_usd[time_period] / count[time_period];
-                    fmt_str =  "%s\t%d\t%f\t%f\t%f\t%f\n";
+                    fmt_str =  "%s,%d,%f,%f,%f,%f\n";
                     printf fmt_str, time_period, count[time_period], sum_btc[time_period], sum_usd[time_period], avg_btc, avg_usd;
                 }}' |
-                sort -t $'\t' -k 1,1 -g
+                sort -t ',' -k 1,1 -g
 }
 
 function print_timeline_months() {
     # Expects the output of the compute_timeline_months function
     print_title "Timeline of transactions (months)"
-    timeline_months_pretty=$(echo -e "$1" | column -t -s $'\t')
+    timeline_months_pretty=$(echo -e "$1" | tr ',' '\t' | column -t -s $'\t')
     print_misc "$timeline_months_pretty"
 }
 
@@ -163,17 +170,17 @@ echo -e "\e[1;92mWelcome to $0! How about this? \e[0m"
 # Print the payment timeline per year
 # timeline_years=$(compute_timeline_years "$ransomwhere")
 # print_timeline_years "$timeline_years"
-# echo -e "$timeline_years" >| timeline_years.txt
+# echo -e "$timeline_years" >| timeline_years.csv
 
 # Print the payment timeline per month
 # timeline_months=$(compute_timeline_months "$ransomwhere")
 # print_timeline_months "$timeline_months"
-# echo -e "$timeline_months" >| timeline_months.txt
+# echo -e "$timeline_months" >| timeline_months.csv
 
 # Print the timeline of ransomware families per month
-timeline_families=$(compute_timeline_families "$ransomwhere")
-print_timeline_families "$timeline_families"
-# echo -e "$timeline_families" >| timeline_families.txt
+# timeline_families=$(compute_timeline_families "$ransomwhere")
+# print_timeline_families "$timeline_families"
+# echo -e "$timeline_families" >| timeline_families.csv
 
 echo -e "\e[1;95mThis script has been sponsored by Smaragdakis et al.!\e[0m"
 echo -e "\e[1;95mHave a nice day!\e[0m"
