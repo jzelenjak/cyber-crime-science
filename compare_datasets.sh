@@ -5,9 +5,11 @@ IFS=$'\n\t'
 
 umask 077
 
+BITCOIN_FACTOR=100000000
+
 
 function usage() {
-    echo "Usage: $0 data1.json data2.json"
+    echo "Usage: $0 ransomwhere.json data.json"
 }
 
 function print_title() {
@@ -61,7 +63,7 @@ comm -12 <(jq -r '.[].address' "$george_data" | sort) <(jq -r '.[].address' "$fu
 echo -ne "\n\e[0m"
 
 
-## Comparing the number of transactions
+# Comparing the number of transactions
 num_transactions_george=$(jq '.[].transactions | length' "$george_data" | paste -d '+' -s | bc)
 num_transactions_full=$(jq '.[].transactions | length' "$full_data" | paste -d '+' -s | bc)
 difference=$((num_transactions_full - num_transactions_george))
@@ -70,6 +72,31 @@ print_result "George: $num_transactions_george"
 print_result "Full: $num_transactions_full"
 print_result "Increase: $difference"
 echo -ne "\n"
+
+# Comparing total payment sums (BTC)
+payment_sum_btc_george=$(jq '.[].transactions.[].amount' "$george_data" | paste -d '+' -s | bc | awk '{ printf "%f", $1 / '"$BITCOIN_FACTOR"'; }')
+payment_sum_btc_full=$(jq '.[].transactions.[].amount' "$full_data" | paste -d '+' -s | bc | awk '{ printf "%f", $1 / '"$BITCOIN_FACTOR"'; }')
+difference=$(bc <<< "$payment_sum_btc_full-$payment_sum_btc_george")
+print_title "Total payment sum (BTC)"
+print_result "George: $payment_sum_btc_george"
+print_result "Full: $payment_sum_btc_full"
+print_result "Increase: $difference"
+
+# Comparing total payment sums (USD)
+payment_sum_usd_george=$(jq '.[].transactions.[].amountUSD' "$george_data" | paste -d '+' -s | bc | awk '{ printf "%f", $1; }')
+payment_sum_usd_full=$(jq '.[].transactions.[].amountUSD' "$full_data" | paste -d '+' -s | bc | awk '{ printf "%f", $1; }')
+difference=$(bc <<< "$payment_sum_usd_full-$payment_sum_usd_george")
+print_title "Total payment sum (USD)"
+print_result "George: $payment_sum_usd_george"
+print_result "Full: $payment_sum_usd_full"
+print_result "Increase: $difference"
+
+# Comparing time ranges
+print_title "Time range of transactions"
+transactions_george=$(jq '.[].transactions.[].time' "$george_data" | awk '{ $1 = strftime("%Y-%m-%d %H:%M:%S", $1); print $0; }' | sort | awk 'NR == 1 { print "First transaction: " $0; }; END { print "Last transaction: " $0; }')
+transactions_full=$(jq '.[].transactions.[].time' "$full_data" | awk '{ $1 = strftime("%Y-%m-%d %H:%M:%S", $1); print $0; }' | sort | awk 'NR == 1 { print "First transaction: " $0; }; END { print "Last transaction: " $0; }')
+print_result "George:\n$transactions_george"
+print_result "Full:\n$transactions_full"
 
 
 # New families (not present in George's dataset)
