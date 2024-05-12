@@ -103,7 +103,7 @@ joined_families=$(echo -e "$joined_families" | tr '|' ',' | tr '$' ' ' | sed 's/
 
 # Apply filtering (if needed)
 # Example format: Conti,2017-12,1,0.166500,1934.206357,1,1,1,0.166500,1940.923832,1,1
-# joined_families=$(echo -e "$joined_families" | awk -F',' '$3 != $8 { print $0; }')
+# joined_families=$(echo -e "$joined_families" | awk -F',' 'NR == 1 { print $0; }; $3 != $8 { print $0; }')
 
 # Write into a csv file
 # echo -e "$joined_families" > families_comparison.csv
