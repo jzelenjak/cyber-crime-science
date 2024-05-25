@@ -22,3 +22,6 @@ It is possible to plot the timeline of transactions (per year and per month), th
 
 First, comment out the corresponding lines in `run_stats.sh` in order to get the txt output with the data. Then run the Python script (`plot_years.py`, `plot_months.py`, `plot_avg.py` or `plot_families.py`) with the corresponding txt file.
 
+## Statistics
+
+The statistics for plotting inflation have been taken from [Current US Inflation Rates: 2000-2024](https://www.usinflationcalculator.com/inflation/current-inflation-rates/) and [Inflation rate, average consumer prices](https://www.imf.org/external/datamapper/PCPIPCH@WEO/WEOWORLD)
