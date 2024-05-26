@@ -160,6 +160,9 @@ function print_timeline_families() {
 [[ -f "$1" ]] || { echo "File $1 does not exist." >&2 ; exit 1; }
 # To download the file: curl -sL "https://api.ransomwhe.re/export" | jq --indent 0 '.result' > data.json
 
+# Transaction timestamps are in UTC
+export TZ="UTC"
+
 ransomwhere="$1"
 
 echo -e "\e[1;92mWelcome to $0! How about this? \e[0m"
