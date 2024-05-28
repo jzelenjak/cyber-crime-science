@@ -42,29 +42,29 @@ ax = fig.add_subplot(111)
 ax.xaxis.set_major_formatter(md.DateFormatter(dateformat))
 ax.xaxis.set_major_locator(md.YearLocator())
 ax.yaxis.set_major_formatter(formatter)
-ax.tick_params(labelrotation=25)
+ax.tick_params(labelrotation=25, labelsize=13)
 
 ymin = math.floor(min(min(us_rates), min(world_rates)))
 ymax = math.ceil(max(max(us_rates), max(world_rates)))
-plt.yticks(np.arange(ymin, ymax, 0.5).tolist())
+plt.yticks(np.arange(ymin, ymax, 0.5).tolist(), fontsize=13)
 plt.ylim(ymin, ymax)
 
 plt.xlim(us_years[0], us_years[-1])
 first_year = us_years[0].strftime("%Y")
 last_year = us_years[-1].strftime("%Y")
-plt.title(f"US and World Inflation Rates in the period from {first_year} and {last_year}")
+plt.title(f"US and World Inflation Rates in the period from {first_year} and {last_year}", fontsize=15)
 
 # Add value labels
 for i in range(len(us_rates)):
-    plt.text(us_years[i], us_rates[i], us_rates[i])
+    plt.text(us_years[i], us_rates[i], us_rates[i], fontsize=13)
 for i in range(len(world_rates)):
-    plt.text(world_years[i], world_rates[i], world_rates[i])
+    plt.text(world_years[i], world_rates[i], world_rates[i], fontsize=13)
 
 plt.plot(us_years, us_rates, color='black', label="US")
 plt.plot(world_years, world_rates, color='cyan', label="World")
 plt.gcf().set_size_inches(20, 10, forward=True)
 plt.grid()
-plt.legend()
+plt.legend(fontsize=13)
 plt.tight_layout()
 
 plt.show()
