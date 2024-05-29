@@ -27,8 +27,7 @@ function print_misc() {
 
 function compute_timeline_families() {
     jq -r '.[] | .family as $family | .address as $address | .transactions[] | [$family, .time, $address, .amount, .amountUSD] | @csv' "$1" | tr -d '"' |
-        tr ' ' '$' |      # Temporarily replace whitespaces in the family name with a dollar (for better sorting)
-        sort -t, -k1,2 |  # Sorting is very important here for the addresses
+        sort -t, -k1,1 -k2,2 |  # Sorting is very important here for the addresses
         awk -F ',' 'BEGIN {
                         printf "0.Family,Month,Count,Sum (BTC),Sum (USD),Used Addresses,Known Addresses\n";
                     }
@@ -38,8 +37,14 @@ function compute_timeline_families() {
                         # Example: WannaCry,1632310212,12t9YDPgwueZ9NyMgw519p7AA8isjr6SMw,26346,11.480139828412979
                         $2 = strftime("%Y-%m", $2);  # Convert the date
                         count[$1,$2] += 1;
-                        sum_btc[$1,$2] += $4 / '"$BITCOIN_FACTOR"';
-                        sum_usd[$1,$2] += $5;
+                        btc = $4 / '"$BITCOIN_FACTOR"';
+                        usd = $5;
+                        sum_btc[$1,$2] += btc;
+                        sum_usd[$1,$2] += usd;
+                        total_count[$1] += 1;
+                        total_sum_btc[$1] += btc;
+                        total_sum_usd[$1] += usd;
+                        last_date[$1] = $2;
 
                         # Check if we have already seen this ransomware family with this address
                         # `seen_addresses` is only used for the check, `known_addresses_total` is a global count so far (including previous time periods)
@@ -55,10 +60,11 @@ function compute_timeline_families() {
 
                     }
                     END {
-                        fmt_str =  "%s,%s,%d,%f,%f,%d,%d\n";
+                        fmt_str = "%s,%s,%d,%.4f,%.2f,%d,%d\n";
 
                         for (combined in count) {
                             split(combined, separate, SUBSEP);
+
                             family = separate[1];
                             time_period = separate[2];
                             count_family = count[family,time_period];
@@ -66,12 +72,17 @@ function compute_timeline_families() {
                             sum_usd_family = sum_usd[family,time_period];
                             used_addresses_family = used_addresses_time_period[family,time_period];
                             known_addresses_family = known_addresses[family,time_period];
-                            printf fmt_str, family, time_period, count_family, sum_btc_family, sum_usd_family, used_addresses_family, known_addresses_family;
+
+                            printf(fmt_str, family, time_period, count_family, sum_btc_family, sum_usd_family, used_addresses_family, known_addresses_family);
+
+                            # Print the total values
+                            if (time_period == last_date[family]) {
+                                printf(fmt_str, family, "Total", total_count[family], total_sum_btc[family], total_sum_usd[family], known_addresses_family, known_addresses_family);
+                            }
                         }
                     }
                     ' |
-                    sort -t ',' -k 2,2 -g |
-                    sort -t ',' -k 1,1 -s
+                    sort -t, -k1,1 -k2,2
 }
 
 # Check if exactly two arguments have been provided
@@ -87,23 +98,19 @@ function compute_timeline_families() {
 george_data="$1"
 full_data="$2"
 
-# For consistent sorting of the families (i.e. without ignoring whitespaces)
-# See: https://stackoverflow.com/questions/6923464/unix-sort-ignores-whitespaces
-# export LC_ALL=C
-
 timeline_families_george=$(compute_timeline_families "$george_data" | sed 's/,/|/' | sort -t, -k1,1)  # Combine family and date (replace only the first comma)
 timeline_families_full=$(compute_timeline_families "$full_data" | sed 's/,/|/' | sort -t, -k1,1)      # Used as join field
 
 # We can join only by a single field and both files must be sorted by key column (see https://stackoverflow.com/questions/2619562/joining-multiple-fields-in-text-files-on-unix)
 # Example input format: Xorist|2017-09,1,0.024044,101.677080,1,3
-joined_families=$(join -j 1 -t',' -a 1 -a 2 -e '-' -o2.1,1.2,1.3,1.4,1.5,1.6,2.2,2.3,2.4,2.5,2.6 <(echo -e "$timeline_families_george") <(echo -e "$timeline_families_full"))
-
-# Remove replaced characters
-joined_families=$(echo -e "$joined_families" | tr '|' ',' | tr '$' ' ' | sed 's/0.Family/Family/')
+joined_families=$(join -j 1 -t',' -a 1 -a 2 -e '-' -o2.1,1.2,1.3,1.4,1.5,1.6,2.2,2.3,2.4,2.5,2.6 <(echo -e "$timeline_families_george") <(echo -e "$timeline_families_full") | tr '|' ',' | sort -t, -k1,1 -k2,2 | sed 's/0.Family/Family/')
 
 # Apply filtering (if needed)
 # Example format: Conti,2017-12,1,0.166500,1934.206357,1,1,1,0.166500,1940.923832,1,1
-# joined_families=$(echo -e "$joined_families" | awk -F',' 'NR == 1 { print $0; }; $3 != $8 { print $0; }')
+joined_families=$(echo -e "$joined_families" | awk -F, 'NR == 1 { print $0; }; $3 != $8 { print $0; }')
+
+# Remove "Total" (if needed)
+# joined_families=$(echo -e "$joined_families" | awk -F, '$2 != "Total" { print $0; }')
 
 # Write into a csv file
 # echo -e "$joined_families" > families_comparison.csv
