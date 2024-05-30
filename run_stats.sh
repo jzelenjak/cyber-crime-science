@@ -176,6 +176,12 @@ function print_timeline_families() {
     print_misc "$timeline_families_pretty"
 }
 
+function print_transactions_for_family() {
+    print_title "$2:"
+    result=$(jq -r '.[] | { address: .address, family: .family, trans: .transactions | length } | [ .address, .family, .trans ] | @csv' "$1" | tr -d '"' | awk -F, '$2 == "'"$2"'" { print $0; }' | awk -F, '!visited[$1]++ { addresses += 1; } { sum += $3; } END { printf "Unique addresses: %d\nNumber of transactions: %d\n", addresses, sum; }')
+    print_misc "$result"
+}
+
 # Check if exactly one argument has been provided
 [[ $# -ne 1 ]] && { usage >&2 ; exit 1; }
 
@@ -207,6 +213,11 @@ print_timeline_months "$timeline_months"
 timeline_families=$(compute_timeline_families "$ransomwhere")
 print_timeline_families "$timeline_families"
 # echo -e "$timeline_families" >| timeline_families.csv
+
+# Print the number of transactions and the number of addresses for a family of choice
+# print_transactions_for_family "$ransomwhere" "Locky"
+# print_transactions_for_family "$ransomwhere" "Conti"
+# print_transactions_for_family "$ransomwhere" "WannaCry"
 
 echo -e "\e[1;95mThis script has been sponsored by Smaragdakis et al.!\e[0m"
 echo -e "\e[1;95mHave a nice day!\e[0m"
