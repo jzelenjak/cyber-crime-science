@@ -86,7 +86,7 @@ for i in range(2):
 
 first_month = months[0].strftime("%B %Y")
 last_month = months[-1].strftime("%B %Y")
-fig.suptitle(f"Timeline of the average ransom size per {time_period} from {first_month} until {last_month}", fontsize=15)
+fig.suptitle(f"Timeline of the average ransom size per {time_period} in the period from {first_month} until {last_month}", fontsize=15)
 
 fig.autofmt_xdate(rotation=45)
 plt.gcf().set_size_inches(20, 10, forward=True)
