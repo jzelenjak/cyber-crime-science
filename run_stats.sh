@@ -32,9 +32,6 @@ function print_misc() {
 
 function print_general_stats() {
     # Expects the full JSON file (data.json)
-    print_title "Total number of addresses"
-    print_result $(jq '.[].address' "$1" | sort -u | wc -l)
-
     print_title "Total number of transactions"
     print_result $(jq '.[].transactions | length' "$1" | paste -d '+' -s | bc)
 
@@ -50,14 +47,32 @@ function print_general_stats() {
                     awk 'NR == 1 { print "First transaction: " $0; }; END { print "Last transaction: " $0; }')
     print_result "$transactions"
 
-    raw_transactions=$(jq -r '.[] | { address: .address, family: .family, createdAt: .createdAt, updatedAt: .updatedAt, trans: .transactions | length } | [ .address, .family, .createdAt, .updatedAt, .trans ] | @csv' "$1" | tr -d '"')
-    empty_addresses=$(echo -e "$raw_transactions" | awk -F, '$NF == 0 { print $0 }')
-    num_empty_addresses=$(echo -e "$empty_addresses" | wc -l)
-    families=$(echo -e "$empty_addresses" | awk -F, '{ print $2; }' | sort | uniq -c | sort -rn | awk '{ print $2 ": " $1; }')
-    families=$(echo -e "$families" | awk 'NR == 1 { printf("%s", $0); count++; } NR > 1 { printf(", %s", $0); count++; } END { printf(" (%d families in total)\n", count); }')
+    address_entries=$(jq -r '.[] | { address: .address, family: .family, createdAt: .createdAt, updatedAt: .updatedAt, trans: .transactions | length } | [ .address, .family, .createdAt, .updatedAt, .trans ] | @csv' "$1" | tr -d '"')
+    transactions=$(echo -e "$address_entries" | awk -F, '$NF != 0 { print $0 }')
+    no_transactions=$(echo -e "$address_entries" | awk -F, '$NF == 0 { print $0 }')
+
+    total_addresses=$(echo -e "$address_entries" | cut -d, -f1 | sort -u | wc -l)
+    empty_addresses=$(echo -e "$no_transactions" | cut -d, -f1 | sort -u | wc -l)
+
+    total_families=$(echo -e "$address_entries" | cut -d, -f2 | sort -u)
+    non_empty_families=$(echo -e "$transactions" | cut -d, -f2 | sort -u)
+    families_with_empty_addresses=$(echo -e "$no_transactions" | cut -d, -f2 | sort -u)
+    stats_families_with_empty_addresses=$(echo -e "$no_transactions" | cut -d, -f2 | sort | uniq -c | sort -rn | awk '{ print $2 ": " $1; }')
+    stats_families_with_empty_addresses_one_line=$(echo -e "$stats_families_with_empty_addresses" | awk 'NR == 1 { printf("%s", $0); count++; } NR > 1 { printf(", %s", $0); count++; } END { printf(" (%d families in total)\n", count); }')
+    empty_families=$(comm -13 <(echo -e "$non_empty_families") <(echo -e "$families_with_empty_addresses"))
+
+    print_title "Total number of families"
+    print_result $(echo -e "$total_families" | wc -l)
+    print_title "Total number of non-empty families"
+    print_result $(echo -e "$non_empty_families" | wc -l)
+    print_title "Total number of empty families"
+    print_result $(echo -e "$empty_families" | wc -l)
+
+    print_title "Total number of addresses"
+    print_result "$total_addresses"
     print_title "Number of empty addresses"
-    print_result "$num_empty_addresses"
-    print_misc "$families"
+    print_result "$empty_addresses"
+    print_misc "$stats_families_with_empty_addresses_one_line"
 }
 
 function compute_timeline_years() {
@@ -175,7 +190,7 @@ ransomwhere="$1"
 
 echo -e "\e[1;92mWelcome to $0! How about this? \e[0m"
 
-# Print general statistics: total number of addresses, total number of transactions, total payment sum (BTC and USD)
+# Print general statistics: total number of addresses, total number of transactions, total payment sum (BTC and USD) etc.
 print_general_stats "$ransomwhere"
 
 # Print the payment timeline per year
