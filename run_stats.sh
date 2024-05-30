@@ -50,6 +50,14 @@ function print_general_stats() {
                     awk 'NR == 1 { print "First transaction: " $0; }; END { print "Last transaction: " $0; }')
     print_result "$transactions"
 
+    raw_transactions=$(jq -r '.[] | { address: .address, family: .family, createdAt: .createdAt, updatedAt: .updatedAt, trans: .transactions | length } | [ .address, .family, .createdAt, .updatedAt, .trans ] | @csv' "$1" | tr -d '"')
+    empty_addresses=$(echo -e "$raw_transactions" | awk -F, '$NF == 0 { print $0 }')
+    num_empty_addresses=$(echo -e "$empty_addresses" | wc -l)
+    families=$(echo -e "$empty_addresses" | awk -F, '{ print $2; }' | sort | uniq -c | sort -rn | awk '{ print $2 ": " $1; }')
+    families=$(echo -e "$families" | awk 'NR == 1 { printf("%s", $0); count++; } NR > 1 { printf(", %s", $0); count++; } END { printf(" (%d families in total)\n", count); }')
+    print_title "Number of empty addresses"
+    print_result "$num_empty_addresses"
+    print_misc "$families"
 }
 
 function compute_timeline_years() {
