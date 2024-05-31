@@ -6,7 +6,7 @@ IFS=$'\n\t'
 umask 077
 
 
-first_month_filter="2014-09"
+first_month_filter="2012-03"
 last_month_filter="2024-03"
 
 function usage() {
@@ -54,7 +54,13 @@ function compute_average_monthly_ransom() {
 
 function compute_pearson_coefficient() {
     # Formula taken from: https://en.wikipedia.org/wiki/Pearson_correlation_coefficient
-    join -j 1 -t, <(compute_bitcoin_average_monthly_price "$1") <(compute_average_monthly_ransom "$2") |
+
+    # Join to match the months
+    joined=$(join -j 1 -t, -a1 -o1.1,1.2,2.2 -e '-1' <(compute_bitcoin_average_monthly_price "$1") <(compute_average_monthly_ransom "$2"))
+    # Fill in missing months for average ransoms by using the one from previous month
+    joined=$(echo -e "$joined" | awk -F, 'BEGIN { prev_month_ransom = 0.0; } $3 == "-1" { $3 = prev_month_ransom; } { print $1 "," $2 "," $3; prev_month_ransom = $3; }')
+    # Compute the Pearson correlation coefficient
+    echo -e "$joined" |
         awk -F, '
             {
                 x = $2;
@@ -81,15 +87,17 @@ function compute_pearson_coefficient() {
 function compute_spearman_coefficient() {
     # Formula taken from: https://en.wikipedia.org/wiki/Spearman%27s_rank_correlation_coefficient
 
-    # Join to only keep the months that are in both series
-    joined=$(join -j 1 -t, <(compute_bitcoin_average_monthly_price "$1") <(compute_average_monthly_ransom "$2"))
+    # Join to match the months
+    joined=$(join -j 1 -t, -a1 -o1.1,1.2,2.2 -e '-1' <(compute_bitcoin_average_monthly_price "$1") <(compute_average_monthly_ransom "$2"))
+    # Fill in missing months for average ransoms by using the one from previous month
+    joined=$(echo -e "$joined" | awk -F, 'BEGIN { prev_month_ransom = 0.0; } $3 == "-1" { $3 = prev_month_ransom; } { print $1 "," $2 "," $3; prev_month_ransom = $3; }')
     # Extract and rank the bitcoin prices
     prices=$(echo -e "$joined" | cut -d, -f1,2)
     ranked_prices=$(echo -e "$prices" | sort -t, -k2,2 -g | awk -F, '{ print $0 "," NR; }' | sort -t, -k1,1)
     # Extract and rank the average ransoms
     ransoms=$(echo -e "$joined" | cut -d, -f1,3)
     ranked_ransoms=$(echo -e "$ransoms" | sort -t, -k2,2 -g | awk -F, '{ print $0 "," NR; }' | sort -t, -k1,1)
-    # Join again the ranked series and compute the Spearman correlation coefficient
+    # Join the ranked series and compute the Spearman correlation coefficient
     join -j 1 -t, <(echo -e "$ranked_prices") <(echo -e "$ranked_ransoms") |
         awk -F, '
             {
@@ -103,7 +111,7 @@ function compute_spearman_coefficient() {
                 n += 1;
             }
             END {
-                r_s = 1 - (6 * sum_d2) / ( n * (n * n - 1) );
+                r_s = 1 - ( (6 * sum_d2) / ( n * (n * n - 1) ) );
                 printf("Spearman correlation coefficient: r_s = %f\n", r_s);
             }'
 }
@@ -119,6 +127,7 @@ function compute_spearman_coefficient() {
 # To download the file, go to https://www.blockchain.com/explorer/charts/market-price and export the JSON file with the following parameters:
 #   "metric1": "market-price", "metric2": "market-price", "type": "linear", "average": "1d", "timespan": "all"
 
+# Note that Pearson requires normality, so take the result with a grain of sault...
 compute_pearson_coefficient "$1" "$2"
 compute_spearman_coefficient "$1" "$2"
 
