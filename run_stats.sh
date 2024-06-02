@@ -9,6 +9,16 @@
 # - Timeline of ransom transactions per month (the number of transactions, the payment sum in BTC, the payment sum in USD)
 # - Timeline of ransomware families per month (the number of transactions, the payment sum in BTC, the payment sum in USD)
 # - (Optionally) The number of transactions and the number of addresses for a family of choice
+#
+# For the monthly timeline of ransomware families, the computed statistics for each ransomware family in one month include:
+# - The number of transactions in that month
+# - The payment sum in BTC in that month
+# - The payment sum in USD in that month
+# - The number of (unique) used addresses in that month
+# - The number of (unique) known addresses so far (sort of a cumulative sum)
+# Furthermore, for each family the totals for the corresponding statistics are also computed.
+#   Note: for totals the used addresses are equal to the known addresses (we know all addresses the family has used).
+
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -19,7 +29,8 @@ umask 077
 BITCOIN_FACTOR=100000000
 
 function usage() {
-    echo "Usage: $0 data.json"
+    echo "Usage: $0 data.json\n"
+    echo -e "\tdata.json - the current up-to-date version of the dataset (available on: https://api.ransomwhe.re/export)"
 }
 
 function print_title() {
@@ -161,62 +172,62 @@ function compute_timeline_families() {
     jq -r '.[] | .family as $family | .address as $address | .transactions[] | [$family, .time, $address, .amount, .amountUSD] | @csv' "$1" | tr -d '"' |
         sort -t, -k1,1 -k2,2 |  # Sorting is very important here for the dates and families
         awk -F, -v bitcoin_factor="$BITCOIN_FACTOR" '
-                    BEGIN {
-                        printf("0.Family,Month,Count,Sum (BTC),Sum (USD),Used Addresses,Known Addresses\n");
+            BEGIN {
+                printf("0.Family,Month,Count,Sum (BTC),Sum (USD),Used Addresses,Known Addresses\n");
+            }
+            {
+                # More on 2d arrays: https://www.gnu.org/software/gawk/manual/html_node/Multidimensional.html
+                # Format:    Family, Timestamp,                           Address   BTC,               USD
+                # Example: WannaCry,1632310212,12t9YDPgwueZ9NyMgw519p7AA8isjr6SMw,26346,11.480139828412979
+                $2 = strftime("%Y-%m", $2);  # Convert the date
+                count[$1,$2] += 1;
+                btc = $4 / bitcoin_factor;
+                usd = $5;
+                sum_btc[$1,$2] += btc;
+                sum_usd[$1,$2] += usd;
+                total_count[$1] += 1;
+                total_sum_btc[$1] += btc;
+                total_sum_usd[$1] += usd;
+                last_month[$1] = $2;
+
+                # Check if we have already seen this ransomware family with this address
+                # `seen_addresses` is only used for the check, `known_addresses_total` is a global count so far (including previous months)
+                if (!seen_addresses[$1,$3]++) {
+                    known_addresses_total[$1] += 1;
+                }
+                known_addresses[$1,$2] = known_addresses_total[$1];
+
+                # Check if we have already seen this ransomware family with this address during this month
+                if (!seen_addresses_month[$1,$2,$3]++) {
+                    used_addresses_month[$1,$2] += 1;
+                }
+
+            }
+            END {
+                fmt_str = "%s,%s,%d,%f,%.2f,%d,%d\n";
+
+                for (combined in count) {
+                    split(combined, separate, SUBSEP);
+
+                    family = separate[1];
+                    month = separate[2];
+                    count_family = count[family,month];
+                    sum_btc_family = sum_btc[family,month];
+                    sum_usd_family = sum_usd[family,month];
+                    used_addresses_family = used_addresses_month[family,month];
+                    known_addresses_family = known_addresses[family,month];
+
+                    printf(fmt_str, family, month, count_family, sum_btc_family, sum_usd_family, used_addresses_family, known_addresses_family);
+
+                    # Print the total values
+                    if (month == last_month[family]) {
+                        # Here total used addresses and total known addresses are the same (we know all addresses they have used)
+                        printf(fmt_str, family, "Total", total_count[family], total_sum_btc[family], total_sum_usd[family], known_addresses_family, known_addresses_family);
                     }
-                    {
-                        # More on 2d arrays: https://www.gnu.org/software/gawk/manual/html_node/Multidimensional.html
-                        # Format:    Family, Timestamp,                           Address   BTC,               USD
-                        # Example: WannaCry,1632310212,12t9YDPgwueZ9NyMgw519p7AA8isjr6SMw,26346,11.480139828412979
-                        $2 = strftime("%Y-%m", $2);  # Convert the date
-                        count[$1,$2] += 1;
-                        btc = $4 / bitcoin_factor;
-                        usd = $5;
-                        sum_btc[$1,$2] += btc;
-                        sum_usd[$1,$2] += usd;
-                        total_count[$1] += 1;
-                        total_sum_btc[$1] += btc;
-                        total_sum_usd[$1] += usd;
-                        last_month[$1] = $2;
-
-                        # Check if we have already seen this ransomware family with this address
-                        # `seen_addresses` is only used for the check, `known_addresses_total` is a global count so far (including previous time periods)
-                        if (!seen_addresses[$1,$3]++) {
-                            known_addresses_total[$1] += 1;
-                        }
-                        known_addresses[$1,$2] = known_addresses_total[$1];
-
-                        # Check if we have already seen this ransomware family with this address during this month
-                        if (!seen_addresses_month[$1,$2,$3]++) {
-                            used_addresses_month[$1,$2] += 1;
-                        }
-
-                    }
-                    END {
-                        fmt_str = "%s,%s,%d,%f,%.2f,%d,%d\n";
-
-                        for (combined in count) {
-                            split(combined, separate, SUBSEP);
-
-                            family = separate[1];
-                            month = separate[2];
-                            count_family = count[family,month];
-                            sum_btc_family = sum_btc[family,month];
-                            sum_usd_family = sum_usd[family,month];
-                            used_addresses_family = used_addresses_month[family,month];
-                            known_addresses_family = known_addresses[family,month];
-
-                            printf(fmt_str, family, month, count_family, sum_btc_family, sum_usd_family, used_addresses_family, known_addresses_family);
-
-                            # Print the total values
-                            if (month == last_month[family]) {
-                                # Here total used addresses and total known addresses are the same (we know all addresses they have used)
-                                printf(fmt_str, family, "Total", total_count[family], total_sum_btc[family], total_sum_usd[family], known_addresses_family, known_addresses_family);
-                            }
-                        }
-                    }' |
-                    sort -t, -k1,1 -k2,2 |
-                    sed 's/0.Family/Family/'
+                }
+            }' |
+            sort -t, -k1,1 -k2,2 |
+            sed 's/0.Family/Family/'
 }
 
 function print_timeline_families() {
@@ -241,16 +252,14 @@ function print_transactions_for_family() {
 
 # Check if the provided file exists
 [[ -f "$1" ]] || { echo "File $1 does not exist." >&2 ; exit 1; }
-# To download the file: curl -sL "https://api.ransomwhe.re/export" | jq --indent 0 '.result' > data.json
-
 
 # Transaction timestamps are in UTC
 export TZ="UTC"
-# For printing thousands with a comma: https://unix.stackexchange.com/questions/249116/how-to-use-awk-to-format-numbers-with-a-thousands-separator
-# Since we import stats in a csv file, we only apply this formating for general stats
+# For consistent sorting
 export LC_ALL=en_US.UTF-8
 
 data="$1"
+
 
 echo -e "\e[1;92mWelcome to $0! How about this? \e[0m"
 
@@ -270,7 +279,7 @@ echo -e "$timeline_months" > timeline_months.csv
 # Print the timeline of ransomware families per month
 timeline_families=$(compute_timeline_families "$data")
 # Remove "Total" (if needed)
-timeline_families=$(echo -e "$timeline_families" | awk -F, '$2 != "Total" { print $0; }')
+# timeline_families=$(echo -e "$timeline_families" | awk -F, '$2 != "Total" { print $0; }')
 print_timeline_families "$timeline_families"
 echo -e "$timeline_families" > timeline_families.csv
 

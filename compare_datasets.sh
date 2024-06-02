@@ -1,15 +1,31 @@
 #!/bin/bash
+#
+# This script is used to compare the current up-to-date version of the Ransomwhere dataset with the version used by George and Kris (https://dl.acm.org/doi/10.1145/3582489).
+#   The current version of the dataset can be downloaded on https://api.ransomwhe.re/export (e.g. curl -sL "https://api.ransomwhe.re/export" | jq --indent 0 '.result' > data.json).
+#   George's dataset is available here: https://zenodo.org/records/6512123.
+# This script could also be used to compare two versions of the Ransomwhere dataset (not necessarily the ones mentioned above).
+#
+# The computed statistics include:
+# - The number of addresses (non-empty and empty)
+# - The number of transactions
+# - The payment sum in BTC
+# - The payment sum in USD
+# - The time range
+# - The new families
+
 
 set -euo pipefail
 IFS=$'\n\t'
 
 umask 077
 
+# The Bitcoin amounts in Ransomwhere dataset are in Satoshi
 BITCOIN_FACTOR=100000000
 
-
 function usage() {
-    echo "Usage: $0 ransomwhere.json data.json"
+    echo -e "Usage: $0 george_data.json full_data.json\n"
+    echo -e "\tgeorge_data.json - the dataset version used by George and Kris (available on: https://zenodo.org/records/6512123)"
+    echo -e "\tfull_data.json - the current up-to-date version of the dataset (available on: https://api.ransomwhe.re/export)"
 }
 
 function print_title() {
@@ -32,11 +48,14 @@ function print_misc() {
 [[ -f "$1" ]] || { echo "File $1 does not exist." >&2 ; exit 1; }
 [[ -f "$2" ]] || { echo "File $2 does not exist." >&2 ; exit 1; }
 
-# To download the full dataset: curl -sL "https://api.ransomwhe.re/export" | jq --indent 0 '.result' > data.json
-# George's dataset: https://zenodo.org/records/6512123
+# Transaction timestamps are in UTC
+export TZ="UTC"
+# For consistent sorting
+export LC_ALL=en_US.UTF-8
 
 george_data="$1"
 full_data="$2"
+
 
 # Comparing addresses
 num_addresses_george=$(jq '.[].address' "$george_data" | sort -u | wc -l)
@@ -44,13 +63,12 @@ num_addresses_full=$(jq '.[].address' "$full_data" | sort -u | wc -l)
 increase_num_addresses=$((num_addresses_full - num_addresses_george))
 
 # Extracting more fields from JSON, use something like:
-# `jq -r '.[] | { address: .address, family: .family, createdAt: .createdAt, updatedAt: .updatedAt, trans: .transactions | length } | [ .address, .family, .createdAt, .updatedAt, .trans ] | @csv' "$george"
+# `jq -r '.[] | { address: .address, family: .family, createdAt: .createdAt, updatedAt: .updatedAt, trans: .transactions | length } | [ .address, .family, .createdAt, .updatedAt, .trans ] | @csv' "$george_data"
 empty_address_entries_george=$(jq -r '.[] | { address: .address, family: .family, trans: .transactions | length } | [ .address, .family, .trans ] | @csv' "$george_data" | tr -d '"' | awk -F, '$NF == 0 { print $0 }' | sort)
 empty_address_entries_full=$(jq -r '.[] | { address: .address, family: .family, trans: .transactions | length } | [ .address, .family, .trans ] | @csv' "$full_data" | tr -d '"' | awk -F, '$NF == 0 { print $0 }' | sort)
 new_empty_addresses=$(comm -23 <(echo -e "$empty_address_entries_full") <(echo -e "$empty_address_entries_george"))  # Only present in the full dataset
 new_empty_addresses_families=$(echo -e "$new_empty_addresses" | cut -d, -f2 | sort | uniq -c | sort -rn | awk '{ print $2 ": " $1 }')  # Extract the family, compute the count
 increase_empty_addresses=$(echo -e "$new_empty_addresses_families" | awk -F': ' '{ count += $2; } END { print count; }')
-
 print_title "Number of addresses"
 print_result "George: $num_addresses_george"
 print_result "Full: $num_addresses_full"
@@ -83,8 +101,8 @@ print_result "Increase: $increase_num_transactions"
 echo -ne "\n"
 
 # Comparing total payment sums (BTC)
-payment_sum_btc_george=$(jq '.[].transactions.[].amount' "$george_data" | paste -d '+' -s | bc | awk '{ printf "%f", $1 / '"$BITCOIN_FACTOR"'; }')
-payment_sum_btc_full=$(jq '.[].transactions.[].amount' "$full_data" | paste -d '+' -s | bc | awk '{ printf "%f", $1 / '"$BITCOIN_FACTOR"'; }')
+payment_sum_btc_george=$(jq '.[].transactions.[].amount' "$george_data" | paste -d '+' -s | bc | awk -v bitcoin_factor="$BITCOIN_FACTOR" '{ printf("%f", $1 / bitcoin_factor); }')
+payment_sum_btc_full=$(jq '.[].transactions.[].amount' "$full_data" | paste -d '+' -s | bc | awk -v bitcoin_factor="$BITCOIN_FACTOR" '{ printf("%f", $1 / bitcoin_factor); }')
 increase_payment_sum_btc=$(bc <<< "$payment_sum_btc_full-$payment_sum_btc_george")
 print_title "Total payment sum (BTC)"
 print_result "George: $payment_sum_btc_george"
@@ -93,8 +111,8 @@ print_result "Increase: $increase_payment_sum_btc"
 echo -ne "\n"
 
 # Comparing total payment sums (USD)
-payment_sum_usd_george=$(jq '.[].transactions.[].amountUSD' "$george_data" | paste -d '+' -s | bc | awk '{ printf "%f", $1; }')
-payment_sum_usd_full=$(jq '.[].transactions.[].amountUSD' "$full_data" | paste -d '+' -s | bc | awk '{ printf "%f", $1; }')
+payment_sum_usd_george=$(jq '.[].transactions.[].amountUSD' "$george_data" | paste -d '+' -s | bc | awk '{ printf("%.2f", $1); }')
+payment_sum_usd_full=$(jq '.[].transactions.[].amountUSD' "$full_data" | paste -d '+' -s | bc | awk '{ printf("%.2f", $1); }')
 increase_payment_sum_usd=$(bc <<< "$payment_sum_usd_full-$payment_sum_usd_george")
 print_title "Total payment sum (USD)"
 print_result "George: $payment_sum_usd_george"
@@ -134,9 +152,8 @@ echo -n "Intersection: "
 comm -12 <(echo -e "$families_george") <(echo -e "$families_full") | wc -l
 echo -e "\e[0m"
 
+# The number of new families and the new families themselves
 new_families=$(comm -23 <(echo -e "$families_full") <(echo -e "$families_george"))  # Only in the full dataset
 num_new_families=$(echo -e "$new_families" | wc -l)
 print_title "New families (${num_new_families})"
 print_misc "$new_families"
-echo -ne "\n"
-
