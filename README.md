@@ -1,27 +1,70 @@
 # Cyber Crime Science - Scripts
 
-This repository contains the scripts used for the Cyber Crime Science course at TU Delft. We have investigated the influence of external factors on ransomware operations and financial behaviours. We have based our work on the paper by Oosthoek et al. ([A Tale of Two Markets: Investigating the Ransomware Payments Economy](https://dl.acm.org/doi/10.1145/3582489)).
+This repository contains the scripts used for the Cyber Crime Science course at TU Delft. We have analysed the ransom transactions from the [Ransomwhere](https://ransomwhe.re/) dataset. The main contributions of our work include:
+- Analysing the timeline of 20,928 ransom transactions over a twelve-year period (March 2012 – March 2024);
+- Investigating how external factors, such as timing or economic factors, could have influenced the operational and financial behaviours of the ransomware groups;
+- Presenting the timeline of the top ransomware families;
+- Showing the changes since the work by Oosthoek et al.
+
+We have based our work on the paper by Oosthoek et al. ([A Tale of Two Markets: Investigating the Ransomware Payments Economy](https://dl.acm.org/doi/10.1145/3582489)).
 
 **NB! Ransomware is bad for security. Do NOT perform any ransomware attacks, even if you know what you are doing.**
 
-## How to run
+## Setup
 
-First, download the [Ransomwhere](https://ransomwhe.re/) dataset. Then you run
+First, download the [Ransomwhere](https://ransomwhe.re/) dataset. On the website, there is an option to download the data. Alternatively, you can run:
 
 ```bash
-$ ./run_stats.sh data.json
+curl -sL "https://api.ransomwhe.re/export" | jq --indent 0 '.result' > data.json
 ```
 
-where `data.json` is the name of the downloaded JSON file.
+### Bitcoin market price
 
-The script `compare_datasets.sh` was only used to find the changes after the work of Oosthoek et al. and is not needed for other purposes.
+The Bitcoin market price has been taken from [Blockchain.com](https://www.blockchain.com/explorer/charts/market-price). Export the JSON file with the following parameters:
 
-## Plotting
+```
+"metric1": "market-price"
+"metric2": "market-price"
+"type": "linear"
+"average": "1d"
+"timespan": "all"
+```
 
-It is possible to plot the timeline of transactions (per year and per month), the timeline of the average ransom (per year and per month) and the timeline of ransomware families.
+You can save the file to the `data/` directory. Then use [preprocess\_bitcoin.sh](data/preprocess_bitcoin.sh) script in the `data/` directory to convert the downloaded file into the required format.
+If needed, you can also change the month range (currently, the first month is 2012-03, the last month is 2024-03).
 
-First, comment out the corresponding lines in `run_stats.sh` in order to get the txt output with the data. Then run the Python script (`plot_years.py`, `plot_months.py`, `plot_avg.py` or `plot_families.py`) with the corresponding txt file.
+### Inflation rates
 
-## Statistics
+The statistics for plotting inflation have been taken from [Current US Inflation Rates: 2000-2024](https://www.usinflationcalculator.com/inflation/current-inflation-rates/) and [Inflation rate, average consumer prices](https://www.imf.org/external/datamapper/PCPIPCH@WEO/WEOWORLD). For the former, you can use the script [preprocess\_us\_inflation.sh](data/preprocess_us_inflation.sh) in the `data/` directory (see the script for the instructions).
 
-The statistics for plotting inflation have been taken from [Current US Inflation Rates: 2000-2024](https://www.usinflationcalculator.com/inflation/current-inflation-rates/) and [Inflation rate, average consumer prices](https://www.imf.org/external/datamapper/PCPIPCH@WEO/WEOWORLD)
+## How to run
+
+### Statistics on the dataset
+
+The main script for computing statistics is [run\_stats.sh](./run_stats.sh). This script computes the general statistics, timeline of ransom transactions per year, timeline of ransom transactions per month, timeline of ransomware families per month and transaction and address count for a ransomware family of choice. The statistics can be exported to a csv file by uncommenting the corresponding lines in the script. You can run the script as follows:
+
+```bash
+./run_stats.sh data.json
+```
+
+where `data.json` is the name of the downloaded JSON file from the Ransomwhere website.
+
+The script [compute\_correlation.sh](./compute_correlation.sh)  is used to compute correlation coefficients between the average monthly Bitcoin market price and the average monthly ransom size. This has only been used for the analysis of economic factors. See the script for more details.
+
+You can use the script [compute\_top\_families.sh](./compute_top_families.sh) to find the top N families in terms of the number of transactions, the total payment sum in BTC and the total payment sum in USD. By default, top 15 families are computed, but you can change this number in the script.
+
+The scripts [compare\_datasets.sh](./compare_datasets.sh) and [compare\_families.sh](./compare_families.sh) were only used to find the changes after the work of Oosthoek et al. and are not needed for other purposes. The dataset version used by Oosthoek et al. can be downloaded from [Zenodo](https://zenodo.org/records/6512123).
+
+### Plotting
+
+There are many Python scripts that can be used to visualize the computed statistics. Instruction on how to run are shown in the corresponding script. Some of the scripts require some csv file generated by `run_stats.sh` file as input. While the names are self-explanatory, below is a quick summary for each script.
+
+You can use [plot\_months.py](plot_months.py) to plot the main monthly timeline of ransom transactions (the number of transactions, the payment sum in BTC and the payment sum in USD). The input file is `timeline_months.csv` computed by `run_stats.sh`.
+
+The [plot\_avg.py](plot_avg.py) script plots the average monthly ransom sizes in BTC and USD as a timeline. This script asks as input the file `timeline_months.csv`, computed by `run_stats.sh`. Other scripts related to economic factors are: [plot\_bitcoin\_and\_ransom.py](plot_bitcoin_and_ransom.py) (plot the timeline with the average monthly Bitcoin market price together with the average monthly ransom, using logarithmic scale), [plot\_bitcoin.py](plot_bitcoin.py) (plot the timeline with the average monthly Bitcoin market price alone, using linear or regular scale), [plot\_us\_inflation.py](plot_us_inflation.py) (plot the timeline with the monthly US inflation rates) and [plot\_inflation.py](plot_inflation.py) (plot the timeline with the yearly US and global inflation rates). See the corresponding scripts for more details on how to run.
+
+The script [plot\_families.py](plot_families.py) can be used to plot the (monthly) timeline of ransomware families (the number of transactions, the payment sum in BTC and the payment sum in USD). For better readability, the families have been split based on the highest monthly sum in USD into three groups (small, medium, large). Since this might looks a bit messy, there is also the script [plot\_top\_families.py](plot_top_families.py) which only plots the top 15 families in terms of the number of transactions, the payment sum in BTC and the payment sum in USD, taking the output of `compute_top_families.sh` as input. Note that the latter script only computes one plot with the top families separately for each of the metrics (i.e. top 15 in the number of transactions, top 15 in the payment sum in BTC and top 15 in the payment sum in USD).
+
+## Contributing
+
+In case you have found a bug, feel free to create an issue or submit a Pull Request. We appreciate your efforts.
