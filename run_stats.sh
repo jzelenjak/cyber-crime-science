@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # This script is the main script to compute statistics on a JSON file from the Ransomwhere website (https://api.ransomwhe.re/export).
-# To download the file: curl -sL "https://api.ransomwhe.re/export" | jq --indent 0 '.result' > data.json
+# To download the file you can run: curl -sL "https://api.ransomwhe.re/export" | jq --indent 0 '.result' > data.json
 #
 # The computed statistics include:
 # - General statistics (total number of transactions, payment sum in BTC and USD, mean ransom sizes, time range, addresses, etc.)
@@ -29,7 +29,7 @@ umask 077
 BITCOIN_FACTOR=100000000
 
 function usage() {
-    echo "Usage: $0 data.json\n"
+    echo -e "Usage: $0 data.json\n"
     echo -e "\tdata.json - the current up-to-date version of the dataset (available on: https://api.ransomwhe.re/export)"
 }
 
@@ -269,19 +269,19 @@ print_general_stats "$data"
 # Print the payment timeline per year
 timeline_years=$(compute_timeline_years "$data")
 print_timeline_years "$timeline_years"
-echo -e "$timeline_years" > timeline_years.csv
+# echo -e "$timeline_years" > timeline_years.csv
 
 # Print the payment timeline per month
 timeline_months=$(compute_timeline_months "$data")
 print_timeline_months "$timeline_months"
-echo -e "$timeline_months" > timeline_months.csv
+# echo -e "$timeline_months" > timeline_months.csv
 
 # Print the timeline of ransomware families per month
 timeline_families=$(compute_timeline_families "$data")
 # Remove "Total" (if needed)
 # timeline_families=$(echo -e "$timeline_families" | awk -F, '$2 != "Total" { print $0; }')
 print_timeline_families "$timeline_families"
-echo -e "$timeline_families" > timeline_families.csv
+# echo -e "$timeline_families" > timeline_families.csv
 
 # Print the number of transactions and the number of addresses for a family of choice
 # print_transactions_for_family "$data" "Locky"

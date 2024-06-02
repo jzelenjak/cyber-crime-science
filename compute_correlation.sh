@@ -1,4 +1,10 @@
 #!/bin/bash
+#
+# This script computes the correlation coefficients (Pearson and Spearman) for the average monthly Bitcoin market price and the average monthly ransom size.
+# The average monthly Bitcoin market price is stored in data/bitcoin-market-price.csv (see data/preprocess_bitcoin.sh).
+# The average ransoms are computed based on the Ransomwhere dataset (https://api.ransomwhe.re/export).
+# To download the file you can run: curl -sL "https://api.ransomwhe.re/export" | jq --indent 0 '.result' > data.json
+
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -10,31 +16,20 @@ first_month_filter="2012-03"
 last_month_filter="2024-03"
 
 function usage() {
-    echo "Usage: $0 market-price.json data.json"
+    echo -e "Usage: $0 data/bitcoin-market-price.csv data.json\n"
+    echo -e "\tdata/bitcoin-market-price.csv - the preprocessed file with the monthly Bitcoin market price (see data/preprocess_bitcoin.sh)"
+    echo -e "\tdata.json - the current up-to-date version of the dataset (available on: https://api.ransomwhe.re/export)"
 }
 
 function compute_bitcoin_average_monthly_price() {
-    # The time is represented by milliseconds, so we have to divide by 1000
-    jq -r '."market-price".[] | [ .x, .y ] | @csv' "$1" |
-        awk -F, '{ $1 = strftime("%Y-%m", $1 / 1000); printf("%s,%.2f\n", $1, $2); }' |
-        awk -F, '
-            {
-                sum[$1] += $2;
-                count[$1] += 1;
-            }
-            END {
-                for (month in count) {
-                    avg_month_price = sum[month] / count[month];
-                    avg_month_price = int(avg_month_price * 100 + 0.5) / 100;
-                    printf("%s,%.2f\n", month, avg_month_price);
-                }
-            }' |
-            sort -t, -k 1,1 |
-            awk -F, '$1 >= "'$first_month_filter'" && $1 <= "'$last_month_filter'" { print $0; }'
+    # The file is assumed to be already preprocessed (see data/preprocess_bitcoin.sh script for more details), so here we only apply filtering
+
+    awk -F, -v first_month="$first_month_filter" -v last_month="$last_month_filter" '$1 >= first_month && $1 <= last_month { print $0; }' "$1"
 }
 
 function compute_average_monthly_ransom() {
     # Expects the full JSON file (data.json)
+
     jq -r '.[] | .transactions.[] | [ .time, .amountUSD ] | @csv' "$1" |
         awk -F, '
             {
@@ -44,7 +39,6 @@ function compute_average_monthly_ransom() {
             } END {
                 for (month in count) {
                     avg_usd = sum_usd[month] / count[month];
-                    avg_usd = int(avg_usd * 100 + 0.5) / 100;
                     printf("%s,%.2f\n", month, avg_usd);
                 }
             }' |
@@ -57,8 +51,8 @@ function compute_pearson_coefficient() {
 
     # Join to match the months
     joined=$(join -j 1 -t, -a1 -o1.1,1.2,2.2 -e '-1' <(compute_bitcoin_average_monthly_price "$1") <(compute_average_monthly_ransom "$2"))
-    # Fill in missing months for average ransoms by using the one from previous month
-    joined=$(echo -e "$joined" | awk -F, 'BEGIN { prev_month_ransom = 0.0; } $3 == "-1" { $3 = prev_month_ransom; } { print $1 "," $2 "," $3; prev_month_ransom = $3; }')
+    # Fill in the missing months for the average ransoms by using the average ransom from the previous month (sort of extrapolation)
+    joined=$(echo -e "$joined" | awk -F, 'BEGIN { prev_month_ransom = 0.0; } $3 == "-1" { $3 = prev_month_ransom; } { printf("%s,%f,%f\n", $1, $2, $3); prev_month_ransom = $3; }')
     # Compute the Pearson correlation coefficient
     echo -e "$joined" |
         awk -F, '
@@ -89,8 +83,8 @@ function compute_spearman_coefficient() {
 
     # Join to match the months
     joined=$(join -j 1 -t, -a1 -o1.1,1.2,2.2 -e '-1' <(compute_bitcoin_average_monthly_price "$1") <(compute_average_monthly_ransom "$2"))
-    # Fill in missing months for average ransoms by using the one from previous month
-    joined=$(echo -e "$joined" | awk -F, 'BEGIN { prev_month_ransom = 0.0; } $3 == "-1" { $3 = prev_month_ransom; } { print $1 "," $2 "," $3; prev_month_ransom = $3; }')
+    # Fill in the missing months for the average ransoms by using the average ransom from the previous month (sort of extrapolation)
+    joined=$(echo -e "$joined" | awk -F, 'BEGIN { prev_month_ransom = 0.0; } $3 == "-1" { $3 = prev_month_ransom; } { printf("%s,%f,%f\n", $1, $2, $3); prev_month_ransom = $3; }')
     # Extract and rank the bitcoin prices
     prices=$(echo -e "$joined" | cut -d, -f1,2)
     ranked_prices=$(echo -e "$prices" | sort -t, -k2,2 -g | awk -F, '{ print $0 "," NR; }' | sort -t, -k1,1)
@@ -117,17 +111,13 @@ function compute_spearman_coefficient() {
 }
 
 
-# Check if exactly two argument have been provided
+# Check if exactly two arguments have been provided
 [[ $# -ne 2 ]] && { usage >&2 ; exit 1; }
 
-# Check if the provided files exists
+# Check if the provided files exist
 [[ -f "$1" ]] || { echo "File $1 does not exist." >&2 ; exit 1; }
 [[ -f "$2" ]] || { echo "File $2 does not exist." >&2 ; exit 1; }
-# To download the file: curl -sL "https://api.ransomwhe.re/export" | jq --indent 0 '.result' > data.json
-# To download the file, go to https://www.blockchain.com/explorer/charts/market-price and export the JSON file with the following parameters:
-#   "metric1": "market-price", "metric2": "market-price", "type": "linear", "average": "1d", "timespan": "all"
 
 # Note that Pearson requires normality, so take the result with a grain of sault...
 compute_pearson_coefficient "$1" "$2"
 compute_spearman_coefficient "$1" "$2"
-
