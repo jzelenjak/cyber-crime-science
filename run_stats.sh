@@ -1,11 +1,21 @@
 #!/bin/bash
+#
+# This script is the main script to compute statistics on a JSON file from the Ransomwhere website (https://api.ransomwhe.re/export).
+# To download the file: curl -sL "https://api.ransomwhe.re/export" | jq --indent 0 '.result' > data.json
+#
+# The computed statistics include:
+# - General statistics (total number of transactions, payment sum in BTC and USD, mean ransom sizes, time range, addresses, etc.)
+# - Timeline of ransom transactions per year (the number of transactions, the payment sum in BTC, the payment sum in USD)
+# - Timeline of ransom transactions per month (the number of transactions, the payment sum in BTC, the payment sum in USD)
+# - Timeline of ransomware families per month (the number of transactions, the payment sum in BTC, the payment sum in USD)
+# - (Optionally) The number of transactions and the number of addresses for a family of choice
 
 set -euo pipefail
 IFS=$'\n\t'
 
 umask 077
 
-
+# The Bitcoin amounts in Ransomwhere dataset are in Satoshi
 BITCOIN_FACTOR=100000000
 
 function usage() {
@@ -32,14 +42,18 @@ function print_misc() {
 
 function print_general_stats() {
     # Expects the full JSON file (data.json)
+
     print_title "Total number of transactions"
-    print_result $(jq '.[].transactions | length' "$1" | paste -d '+' -s | bc)
+    print_result $(jq '.[].transactions | length' "$1" | paste -d '+' -s | bc | awk '{ printf("%d\n", $1); }')
 
     print_title "Total payment sum (BTC)"
-    print_result $(jq '.[].transactions.[].amount' "$1" | paste -d '+' -s | bc | awk '{ printf "%f", $1 / '"$BITCOIN_FACTOR"'; }')
+    print_result $(jq '.[].transactions.[].amount' "$1" | paste -d '+' -s | bc | awk -v bitcoin_factor="$BITCOIN_FACTOR" '{ printf("%f\n", $1 / bitcoin_factor); }')
 
     print_title "Total payment sum (USD)"
-    print_result $(jq '.[].transactions.[].amountUSD' "$1" | paste -d '+' -s | bc | awk '{ printf "%f", $1; }')
+    print_result $(jq '.[].transactions.[].amountUSD' "$1" | paste -d '+' -s | bc | awk '{ printf("%.2f\n", $1); }')
+
+    print_title "Means for ransom sizes (BTC, USD)"
+    print_result $(jq -r '.[] | .transactions.[] | { amount: .amount, amountUSD: .amountUSD } | [ .amount, .amountUSD] | @csv' "$1" | awk -F, -v bitcoin_factor="$BITCOIN_FACTOR" '{ sumBTC += $1 / bitcoin_factor; sumUSD += $2; count += 1;} END { printf("Mean (BTC): %f, Mean (USD): %.2f\n", sumBTC / count, sumUSD / count); }')
 
     print_title "Time range of transactions"
     transactions=$(jq '.[].transactions.[].time' "$1" |
@@ -51,8 +65,8 @@ function print_general_stats() {
     transactions=$(echo -e "$address_entries" | awk -F, '$NF != 0 { print $0 }')
     no_transactions=$(echo -e "$address_entries" | awk -F, '$NF == 0 { print $0 }')
 
-    total_addresses=$(echo -e "$address_entries" | cut -d, -f1 | sort -u | wc -l)
-    empty_addresses=$(echo -e "$no_transactions" | cut -d, -f1 | sort -u | wc -l)
+    total_addresses=$(echo -e "$address_entries" | cut -d, -f1 | sort -u | awk '{ count++; } END { printf("%d\n", count); }')
+    empty_addresses=$(echo -e "$no_transactions" | cut -d, -f1 | sort -u | awk '{ count++; } END { printf("%d\n", count); }')
 
     total_families=$(echo -e "$address_entries" | cut -d, -f2 | sort -u)
     non_empty_families=$(echo -e "$transactions" | cut -d, -f2 | sort -u)
@@ -70,37 +84,39 @@ function print_general_stats() {
 
     print_title "Total number of addresses"
     print_result "$total_addresses"
-    print_title "Number of empty addresses"
+    print_title "Number of empty addresses (and the corresponding families)"
     print_result "$empty_addresses"
     print_misc "$stats_families_with_empty_addresses_one_line"
 }
 
 function compute_timeline_years() {
     # Expects the full JSON file (data.json)
+
     jq -r '.[] | .transactions.[] | [ .time, .amount, .amountUSD ] | @csv' "$1" |
-        awk -F',' '
+        awk -F, -v bitcoin_factor="$BITCOIN_FACTOR" '
             BEGIN {
-                printf "Year,Count,Sum (BTC),Sum (USD),Average (BTC),Average (USD)\n";
+                printf("Year,Count,Sum (BTC),Sum (USD),Average (BTC),Average (USD)\n");
             }
             {
                 $1 = strftime("%Y", $1);
                 count[$1] += 1;
-                sum_btc[$1] += $2 / '"$BITCOIN_FACTOR"';
+                sum_btc[$1] += $2 / bitcoin_factor;
                 sum_usd[$1] += $3;
             }
             END {
                 for (year in count) {
                     avg_btc = sum_btc[year] / count[year];
                     avg_usd = sum_usd[year] / count[year];
-                    fmt_str = "%s,%d,%f,%f,%f,%f\n";
-                    printf fmt_str, year, count[year], sum_btc[year], sum_usd[year], avg_btc, avg_usd;
+                    fmt_str = "%s,%d,%f,%.2f,%f,%.2f\n";
+                    printf(fmt_str, year, count[year], sum_btc[year], sum_usd[year], avg_btc, avg_usd);
                 }
             }' |
-            sort -t ',' -k 1,1 -g
+            sort -t, -k 1,1 -g
 }
 
 function print_timeline_years() {
     # Expects the output of the compute_timeline_years function
+
     print_title "Timeline of transactions (years)"
     timeline_years_pretty=$(echo -e "$1" | tr ',' '\t' | column -t -s $'\t')
     print_result "$timeline_years_pretty"
@@ -108,79 +124,117 @@ function print_timeline_years() {
 
 function compute_timeline_months() {
     # Expects the full JSON file (data.json)
+
     jq -r '.[] | .transactions.[] | [ .time, .amount, .amountUSD ] | @csv' "$1" |
-        awk -F',' '
+        awk -F, -v bitcoin_factor="$BITCOIN_FACTOR" '
             BEGIN {
-                printf "Month,Count,Sum (BTC),Sum (USD),Average (BTC),Average (USD)\n";
+                printf("Month,Count,Sum (BTC),Sum (USD),Average (BTC),Average (USD)\n");
             }
             {
                 $1 = strftime("%Y-%m", $1);
                 count[$1] += 1;
-                sum_btc[$1] += $2 / '"$BITCOIN_FACTOR"';
+                sum_btc[$1] += $2 / bitcoin_factor;
                 sum_usd[$1] += $3;
             } END {
-                for (time_period in count) {
-                    avg_btc = sum_btc[time_period] / count[time_period];
-                    avg_usd = sum_usd[time_period] / count[time_period];
-                    fmt_str =  "%s,%d,%f,%f,%f,%f\n";
-                    printf fmt_str, time_period, count[time_period], sum_btc[time_period], sum_usd[time_period], avg_btc, avg_usd;
-                }}' |
-                sort -t ',' -k 1,1 -g
+                for (month in count) {
+                    avg_btc = sum_btc[month] / count[month];
+                    avg_usd = sum_usd[month] / count[month];
+                    fmt_str =  "%s,%d,%f,%.2f,%f,%.2f\n";
+                    printf(fmt_str, month, count[month], sum_btc[month], sum_usd[month], avg_btc, avg_usd);
+                }
+            }' |
+            sort -t, -k 1,1 -g
 }
 
 function print_timeline_months() {
     # Expects the output of the compute_timeline_months function
+
     print_title "Timeline of transactions (months)"
     timeline_months_pretty=$(echo -e "$1" | tr ',' '\t' | column -t -s $'\t')
-    print_misc "$timeline_months_pretty"
+    print_result "$timeline_months_pretty"
 }
 
 
 function compute_timeline_families() {
     # Expects the full JSON file (data.json)
-    jq -r '.[] | .family as $family | .transactions[] | [$family, .time, .amount, .amountUSD] | @csv' "$1" | tr -d '"' |
-        awk -F ',' 'BEGIN {
-                        printf "0.Family,Month,Count,Sum (BTC),Sum (USD)\n";
+
+    jq -r '.[] | .family as $family | .address as $address | .transactions[] | [$family, .time, $address, .amount, .amountUSD] | @csv' "$1" | tr -d '"' |
+        sort -t, -k1,1 -k2,2 |  # Sorting is very important here for the dates and families
+        awk -F, -v bitcoin_factor="$BITCOIN_FACTOR" '
+                    BEGIN {
+                        printf("0.Family,Month,Count,Sum (BTC),Sum (USD),Used Addresses,Known Addresses\n");
                     }
                     {
                         # More on 2d arrays: https://www.gnu.org/software/gawk/manual/html_node/Multidimensional.html
-                        # Example input: "Conti",1576703591,3000096760,218311.1230543254
+                        # Format:    Family, Timestamp,                           Address   BTC,               USD
+                        # Example: WannaCry,1632310212,12t9YDPgwueZ9NyMgw519p7AA8isjr6SMw,26346,11.480139828412979
                         $2 = strftime("%Y-%m", $2);  # Convert the date
                         count[$1,$2] += 1;
-                        sum_btc[$1,$2] += $3 / '"$BITCOIN_FACTOR"';
-                        sum_usd[$1,$2] += $4;
+                        btc = $4 / bitcoin_factor;
+                        usd = $5;
+                        sum_btc[$1,$2] += btc;
+                        sum_usd[$1,$2] += usd;
+                        total_count[$1] += 1;
+                        total_sum_btc[$1] += btc;
+                        total_sum_usd[$1] += usd;
+                        last_month[$1] = $2;
+
+                        # Check if we have already seen this ransomware family with this address
+                        # `seen_addresses` is only used for the check, `known_addresses_total` is a global count so far (including previous time periods)
+                        if (!seen_addresses[$1,$3]++) {
+                            known_addresses_total[$1] += 1;
+                        }
+                        known_addresses[$1,$2] = known_addresses_total[$1];
+
+                        # Check if we have already seen this ransomware family with this address during this month
+                        if (!seen_addresses_month[$1,$2,$3]++) {
+                            used_addresses_month[$1,$2] += 1;
+                        }
+
                     }
                     END {
-                        fmt_str =  "%s,%s,%d,%f,%f\n";
+                        fmt_str = "%s,%s,%d,%f,%.2f,%d,%d\n";
 
                         for (combined in count) {
                             split(combined, separate, SUBSEP);
+
                             family = separate[1];
-                            time_period = separate[2];
-                            count_family = count[family,time_period];
-                            sum_btc_family = sum_btc[family,time_period];
-                            sum_usd_family = sum_usd[family,time_period];
-                            printf fmt_str, family, time_period, count_family, sum_btc_family, sum_usd_family;
+                            month = separate[2];
+                            count_family = count[family,month];
+                            sum_btc_family = sum_btc[family,month];
+                            sum_usd_family = sum_usd[family,month];
+                            used_addresses_family = used_addresses_month[family,month];
+                            known_addresses_family = known_addresses[family,month];
+
+                            printf(fmt_str, family, month, count_family, sum_btc_family, sum_usd_family, used_addresses_family, known_addresses_family);
+
+                            # Print the total values
+                            if (month == last_month[family]) {
+                                # Here total used addresses and total known addresses are the same (we know all addresses they have used)
+                                printf(fmt_str, family, "Total", total_count[family], total_sum_btc[family], total_sum_usd[family], known_addresses_family, known_addresses_family);
+                            }
                         }
-                    }
-                    ' |
-                    sort -t ',' -k 2,2 -g |
-                    sort -t ',' -k 1,1 -s |
+                    }' |
+                    sort -t, -k1,1 -k2,2 |
                     sed 's/0.Family/Family/'
 }
 
 function print_timeline_families() {
     # Expects the output of the compute_timeline_families function
-    print_title "Timeline of transactions per families"
+
+    print_title "Timeline of transactions per family"
     timeline_families_pretty=$(echo -e "$1" | tr ',' '\t' | column -t -s $'\t')
     print_misc "$timeline_families_pretty"
 }
 
 function print_transactions_for_family() {
+    # Expects the full JSON file (data.json) and the ransomware family of interest
+
     print_title "$2:"
-    result=$(jq -r '.[] | { address: .address, family: .family, trans: .transactions | length } | [ .address, .family, .trans ] | @csv' "$1" | tr -d '"' | awk -F, '$2 == "'"$2"'" { print $0; }' | awk -F, '!visited[$1]++ { addresses += 1; } { sum += $3; } END { printf "Unique addresses: %d\nNumber of transactions: %d\n", addresses, sum; }')
+    result=$(jq -r '.[] | { address: .address, family: .family, trans: .transactions | length } | [ .address, .family, .trans ] | @csv' "$1" | tr -d '"' | awk -F, -v family="$2" '$2 == family { print $0; }' | awk -F, '!visited[$1]++ { addresses += 1; } { sum += $3; } END { printf("Unique addresses: %d\nNumber of transactions: %d\n", addresses, sum); }')
     print_misc "$result"
 }
+
 
 # Check if exactly one argument has been provided
 [[ $# -ne 1 ]] && { usage >&2 ; exit 1; }
@@ -189,35 +243,42 @@ function print_transactions_for_family() {
 [[ -f "$1" ]] || { echo "File $1 does not exist." >&2 ; exit 1; }
 # To download the file: curl -sL "https://api.ransomwhe.re/export" | jq --indent 0 '.result' > data.json
 
+
 # Transaction timestamps are in UTC
 export TZ="UTC"
+# For printing thousands with a comma: https://unix.stackexchange.com/questions/249116/how-to-use-awk-to-format-numbers-with-a-thousands-separator
+# Since we import stats in a csv file, we only apply this formating for general stats
+export LC_ALL=en_US.UTF-8
 
-ransomwhere="$1"
+data="$1"
 
 echo -e "\e[1;92mWelcome to $0! How about this? \e[0m"
 
 # Print general statistics: total number of addresses, total number of transactions, total payment sum (BTC and USD) etc.
-print_general_stats "$ransomwhere"
+print_general_stats "$data"
 
 # Print the payment timeline per year
-timeline_years=$(compute_timeline_years "$ransomwhere")
+timeline_years=$(compute_timeline_years "$data")
 print_timeline_years "$timeline_years"
-# echo -e "$timeline_years" >| timeline_years.csv
+echo -e "$timeline_years" > timeline_years.csv
 
 # Print the payment timeline per month
-timeline_months=$(compute_timeline_months "$ransomwhere")
+timeline_months=$(compute_timeline_months "$data")
 print_timeline_months "$timeline_months"
-# echo -e "$timeline_months" >| timeline_months.csv
+echo -e "$timeline_months" > timeline_months.csv
 
 # Print the timeline of ransomware families per month
-timeline_families=$(compute_timeline_families "$ransomwhere")
+timeline_families=$(compute_timeline_families "$data")
+# Remove "Total" (if needed)
+timeline_families=$(echo -e "$timeline_families" | awk -F, '$2 != "Total" { print $0; }')
 print_timeline_families "$timeline_families"
-# echo -e "$timeline_families" >| timeline_families.csv
+echo -e "$timeline_families" > timeline_families.csv
 
 # Print the number of transactions and the number of addresses for a family of choice
-# print_transactions_for_family "$ransomwhere" "Locky"
-# print_transactions_for_family "$ransomwhere" "Conti"
-# print_transactions_for_family "$ransomwhere" "WannaCry"
+# print_transactions_for_family "$data" "Locky"
+# print_transactions_for_family "$data" "Conti"
+# print_transactions_for_family "$data" "WannaCry"
+
 
 echo -e "\e[1;95mThis script has been sponsored by Smaragdakis et al.!\e[0m"
 echo -e "\e[1;95mHave a nice day!\e[0m"
