@@ -16,7 +16,7 @@ import numpy as np
 # The file is assumed to be comma-separated (i.e. in the csv format)
 file_separator = ","
 if len(sys.argv) != 2:
-    print(f"Usage: python {sys.argv[0]} data/bitcoin-market-price.csv")
+    print(f"Usage: python {sys.argv[0]} data/bitcoin_market_price.csv")
     exit(1)
 
 

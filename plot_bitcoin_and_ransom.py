@@ -18,7 +18,7 @@ import numpy as np
 # The file is assumed to be comma-separated (i.e. in the csv format)
 file_separator = ","
 if len(sys.argv) != 3:
-    print(f"Usage: python {sys.argv[0]} data/bitcoin-market-price.csv timeline_months.csv\n\n       Run run_stats.sh to get timeline_families.csv file")
+    print(f"Usage: python {sys.argv[0]} data/bitcoin_market_price.csv timeline_months.csv\n\n       Run run_stats.sh to get timeline_families.csv file")
     exit(1)
 
 formatter = mt.ScalarFormatter()

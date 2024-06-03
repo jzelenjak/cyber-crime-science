@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
-# This script plots the yearly timeline of the US and global inflation rates, based on the files us-yearly-inflation-rates.csv and world-inflation-rates.csv.
-# Both files us-yearly-inflation-rates.csv and world-inflation-rates.csv are located in the data/ directory.
+# This script plots the yearly timeline of the US and global inflation rates, based on the files us_yearly_inflation_rates.csv and world_inflation_rates.csv.
+# Both files us_yearly_inflation_rates.csv and world_inflation_rates.csv are located in the data/ directory.
 
 import datetime
 import math
@@ -16,7 +16,7 @@ import numpy as np
 # The file is assumed to be comma-separated (i.e. in the csv format)
 file_separator = ","
 if len(sys.argv) != 3:
-    print(f"Usage: python {sys.argv[0]} data/us-yearly-inflation-rates.csv data/world-inflation-rates.csv")
+    print(f"Usage: python {sys.argv[0]} data/us_yearly_inflation_rates.csv data/world_inflation_rates.csv")
     exit(1)
 
 

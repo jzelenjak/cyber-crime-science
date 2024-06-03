@@ -2,8 +2,8 @@
 #
 # This script is only used to preprocess the table with the US inflation rates and convert it into a csv file (with the rates per month).
 # The table with the US inflation rates is taken from: https://www.usinflationcalculator.com/inflation/current-inflation-rates/ (Annual Inflation Rates)
-# You can copy the table from the website, paste it into Excel or LibreOffice and then export as csv (e.g. into a file "us-inflation-rates.csv"). In either case, the input file must be a csv.
-# You can redirect the output of this script into a file of your choice, e.g. `./preprocess_us_inflation.sh us-inflation-rates.csv > us-monthly-inflation-rates.csv`
+# You can copy the table from the website, paste it into Excel or LibreOffice and then export as csv (e.g. into a file "us_inflation_rates.csv"). In either case, the input file must be a csv.
+# You can redirect the output of this script into a file of your choice, e.g. `./preprocess_us_inflation.sh us_inflation_rates.csv > us_monthly_inflation_rates.csv`
 
 
 set -euo pipefail
@@ -13,8 +13,8 @@ umask 077
 
 
 function usage() {
-    echo -e "Usage: $0 us-inflation-rates.csv\n"
-    echo -e "\tus-inflationrates.csv - the table (in a csv file) taken from Annual Inflation Rates on: "
+    echo -e "Usage: $0 us_inflation_rates.csv\n"
+    echo -e "\tus_inflation_rates.csv - a csv file with the table taken from Annual Inflation Rates on: "
     echo -e "\t\thttps://www.usinflationcalculator.com/inflation/current-inflation-rates/"
 }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
-# This script plots the monthly timeline of the US inflation rates, based on the file us-monthly-inflation-rates.csv.
-# The file us-monthly-inflation-rates.csv is located in the data/ directory.
+# This script plots the monthly timeline of the US inflation rates, based on the file us_monthly_inflation_rates.csv.
+# The file us_monthly_inflation_rates.csv is located in the data/ directory.
 
 
 import datetime
@@ -17,7 +17,7 @@ import numpy as np
 # The file is assumed to be comma-separated (i.e. in the csv format)
 file_separator = ","
 if len(sys.argv) != 2:
-    print(f"Usage: python {sys.argv[0]} data/us-montly-inflation-rates.csv")
+    print(f"Usage: python {sys.argv[0]} data/us_monthly_inflation_rates.csv")
     exit(1)
 
 
@@ -65,5 +65,5 @@ plt.gcf().set_size_inches(22, 11, forward=True)
 plt.grid()
 plt.tight_layout()
 
-# plt.savefig("us-monthly-inflation-rates.png")
+# plt.savefig("us_monthly_inflation_rates.png")
 plt.show()
