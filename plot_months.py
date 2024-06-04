@@ -80,7 +80,7 @@ last_month = months[-1].strftime("%B %Y")
 fig.suptitle(f"Timeline of ransom transactions per month in the period from {first_month} until {last_month}", fontsize=20)
 
 fig.autofmt_xdate(rotation=25)
-plt.gcf().set_size_inches(22, 11, forward=True)
+plt.gcf().set_size_inches(22, 12, forward=True)
 plt.tight_layout()
 
 # plt.savefig("timeline_months.png")

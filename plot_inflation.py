@@ -72,7 +72,7 @@ plt.text(world_years[-1], world_rates[-1], world_rates[-1], ha="right", va="bott
 
 plt.plot(us_years, us_rates, color='black', label="US")
 plt.plot(world_years, world_rates, color='cyan', label="World")
-plt.gcf().set_size_inches(22, 11, forward=True)
+plt.gcf().set_size_inches(22, 12, forward=True)
 plt.grid()
 plt.legend(fontsize=15)
 plt.tight_layout()

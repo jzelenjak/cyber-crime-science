@@ -74,7 +74,7 @@ plt.title(f"Bitcoin average montly market price vs average monthly ransom size i
 
 plt.plot(btc_months, prices, color='blue', label="Bitcoin market price", marker='o')
 plt.plot(ransom_months, avg_ransoms, color='red', label="Average monthly ransom", marker='o')
-plt.gcf().set_size_inches(22, 11, forward=True)
+plt.gcf().set_size_inches(22, 12, forward=True)
 plt.grid()
 plt.legend(fontsize=15)
 plt.tight_layout()

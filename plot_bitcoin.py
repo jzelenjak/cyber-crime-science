@@ -61,7 +61,7 @@ plt.text(months[0], prices[0], prices[0], ha="left", va="bottom", fontfamily="mo
 plt.text(months[-1], prices[-1], prices[-1], ha="right", va="bottom", fontfamily="monospace", fontsize=15)
 
 plt.plot(months, prices, color='blue')
-plt.gcf().set_size_inches(22, 11, forward=True)
+plt.gcf().set_size_inches(22, 12, forward=True)
 plt.grid()
 plt.tight_layout()
 

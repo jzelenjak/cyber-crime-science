@@ -61,7 +61,7 @@ last_month = months[-1].strftime("%B %Y")
 plt.title(f"US Inflation Rates in the period from {first_month} and {last_month}", fontsize=20)
 
 plt.plot(months, rates, color='black')
-plt.gcf().set_size_inches(22, 11, forward=True)
+plt.gcf().set_size_inches(22, 12, forward=True)
 plt.grid()
 plt.tight_layout()
 

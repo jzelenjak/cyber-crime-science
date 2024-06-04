@@ -4,7 +4,7 @@
 # To download the JSON file with the Bitcoin market price, go to https://www.blockchain.com/explorer/charts/market-price and export the JSON file with the following parameters:
 #   "metric1": "market-price", "metric2": "market-price", "type": "linear", "average": "1d", "timespan": "all"
 # The computed Bitcoin market price is the average market price per month, since we also compute average ransoms per month.
-# The output of this script will be written in the files bitcoin_market_price.csv.
+# The output of this script will be written in the file bitcoin_market_price.csv.
 
 
 set -euo pipefail
