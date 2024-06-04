@@ -13,6 +13,7 @@
 # - The number of (unique) known addresses so far (sort of a cumulative sum)
 # Furthermore, for each family the totals for the corresponding statistics are also computed.
 #   Note: for totals the used addresses are equal to the known addresses (we know all addresses the family has used).
+# See below in the script for commented out lines regarding applying filtering to keep only the lines with the changed number of transactions, removing totals and saving the output to a csv file.
 
 
 set -euo pipefail
@@ -135,7 +136,7 @@ joined_families=$(echo -e "$joined_families" | awk -F, 'NR == 1 { print $0; }; $
 # joined_families=$(echo -e "$joined_families" | awk -F, '$2 != "Total" { print $0; }')
 
 # Write into a csv file
-echo -e "$joined_families" > families_comparison.csv
+# echo -e "$joined_families" > families_comparison.csv
 
 # Pretty print
 joined_families=$(echo -e "$joined_families" | tr ' ' '_' | tr ',' '\t'  | column -t -s $'\t')

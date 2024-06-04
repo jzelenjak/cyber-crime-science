@@ -18,6 +18,7 @@
 # - The number of (unique) known addresses so far (sort of a cumulative sum)
 # Furthermore, for each family the totals for the corresponding statistics are also computed.
 #   Note: for totals the used addresses are equal to the known addresses (we know all addresses the family has used).
+# See below in the script for the lines regarding removing totals and saving the output to a csv file.
 
 
 set -euo pipefail
@@ -269,25 +270,24 @@ print_general_stats "$data"
 # Print the payment timeline per year
 timeline_years=$(compute_timeline_years "$data")
 print_timeline_years "$timeline_years"
-# echo -e "$timeline_years" > timeline_years.csv
+echo -e "$timeline_years" > timeline_years.csv
 
 # Print the payment timeline per month
 timeline_months=$(compute_timeline_months "$data")
 print_timeline_months "$timeline_months"
-# echo -e "$timeline_months" > timeline_months.csv
+echo -e "$timeline_months" > timeline_months.csv
 
 # Print the timeline of ransomware families per month
 timeline_families=$(compute_timeline_families "$data")
 # Remove "Total" (if needed)
-# timeline_families=$(echo -e "$timeline_families" | awk -F, '$2 != "Total" { print $0; }')
+timeline_families=$(echo -e "$timeline_families" | awk -F, '$2 != "Total" { print $0; }')
 print_timeline_families "$timeline_families"
-# echo -e "$timeline_families" > timeline_families.csv
+echo -e "$timeline_families" > timeline_families.csv
 
 # Print the number of transactions and the number of addresses for a family of choice
 # print_transactions_for_family "$data" "Locky"
 # print_transactions_for_family "$data" "Conti"
 # print_transactions_for_family "$data" "WannaCry"
-
 
 echo -e "\e[1;95mThis script has been sponsored by Smaragdakis et al.!\e[0m"
 echo -e "\e[1;95mHave a nice day!\e[0m"
