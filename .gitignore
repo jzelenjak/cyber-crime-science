@@ -1,6 +1,6 @@
-*.png
-*.jpg
-*.txt
+/*.png
+/*.jpg
+/*.txt
 /*.csv
-*.json
-*.pdf
+/*.json
+/*.pdf

@@ -77,5 +77,5 @@ plt.grid()
 plt.legend(fontsize=15)
 plt.tight_layout()
 
-#plt.savefig("inflation.png")
+#plt.savefig("global_inflation.png")
 plt.show()

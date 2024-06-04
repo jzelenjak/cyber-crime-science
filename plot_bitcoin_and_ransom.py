@@ -70,7 +70,7 @@ first_month, last_month = btc_months[0], btc_months[-1]
 plt.xlim(first_month, last_month)
 first_month_str = first_month.strftime("%B %Y")
 last_month_str = last_month.strftime("%B %Y")
-plt.title(f"Bitcoin average montly market price vs average monthly ransom size in the period from {first_month_str} and {last_month_str}", fontsize=20)
+plt.title(f"Bitcoin average monthly market price vs average monthly ransom size in the period from {first_month_str} and {last_month_str}", fontsize=20)
 
 plt.plot(btc_months, prices, color='blue', label="Bitcoin market price", marker='o')
 plt.plot(ransom_months, avg_ransoms, color='red', label="Average monthly ransom", marker='o')
