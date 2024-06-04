@@ -4,8 +4,9 @@
 #   - One file with the rates per month
 #   - Another file with the rates per year
 # The table with the US inflation rates is taken from: https://www.usinflationcalculator.com/inflation/current-inflation-rates/ (Annual Inflation Rates)
-# You can copy the table from the website, paste it into Excel or LibreOffice and then export as csv (e.g. into a file "us_inflation_rates.csv"). In either case, the input file must be a csv.
-# In either case, make sure that the csv file is in the following format (including the header!):
+# File us_inflation_rates_table_example.csv is an example that you could use with the last month May 2024.
+# If you want a more up-to-date version, you can copy the table from the website, paste it into Excel/LibreOffice and export as csv (e.g. into a file "us_inflation_rates.csv").
+# In either case, the input file must be a csv, with the following format (including the header!):
 #   Year,Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec,Ave
 #   2024,3.1,3.2,3.5,3.4,Avail. June 12,,,,,,,,
 #   2023,6.4,6.0,5.0,4.9,4.0,3.0,3.2,3.7,3.7,3.2,3.1,3.4,4.1
