@@ -16,15 +16,16 @@ first_month_filter="2012-03"
 last_month_filter="2024-03"
 
 function usage() {
-    echo -e "Usage: $0 data/bitcoin-market-price.csv data.json\n"
-    echo -e "\tdata/bitcoin-market-price.csv - the preprocessed file with the monthly Bitcoin market price (see data/preprocess_bitcoin.sh)"
+    echo -e "Usage: $0 data/bitcoin_market_price.csv data.json\n"
+    echo -e "\tdata/bitcoin_market_price.csv - the preprocessed file with the monthly Bitcoin market price (see data/preprocess_bitcoin.sh)"
     echo -e "\tdata.json - the current up-to-date version of the dataset (available on: https://api.ransomwhe.re/export)"
 }
 
 function compute_bitcoin_average_monthly_price() {
     # The file is assumed to be already preprocessed (see data/preprocess_bitcoin.sh script for more details), so here we only apply filtering
 
-    awk -F, -v first_month="$first_month_filter" -v last_month="$last_month_filter" '$1 >= first_month && $1 <= last_month { print $0; }' "$1"
+    awk -F, '$2 != "Price" { print $0; }' "$1" |  # Skip the header
+    awk -F, -v first_month="$first_month_filter" -v last_month="$last_month_filter" '$1 >= first_month && $1 <= last_month { print $0; }'
 }
 
 function compute_average_monthly_ransom() {

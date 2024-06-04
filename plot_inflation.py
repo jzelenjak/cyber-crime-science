@@ -28,14 +28,14 @@ datelocator = md.YearLocator()
 
 us_years, us_rates = [], []
 with open(sys.argv[1], "r") as file:
-    for line in file.readlines():
+    for line in file.readlines()[1:]:  # Skip the header
         parts = line.split(file_separator)
         us_years.append(datetime.datetime.strptime(parts[0], dateformat))
         us_rates.append(float(parts[1]))
 
 world_years, world_rates = [], []
 with open(sys.argv[2], "r") as file:
-    for line in file.readlines():
+    for line in file.readlines()[1:]:  # Skip the header
         parts = line.split(file_separator)
         world_years.append(datetime.datetime.strptime(parts[0], dateformat))
         world_rates.append(float(parts[1]))

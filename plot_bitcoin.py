@@ -27,7 +27,7 @@ dateformat = "%Y-%m"
 datelocator = md.MonthLocator(interval=3)
 months, prices = [], []
 with open(sys.argv[1], "r") as file:
-    for line in file.readlines():
+    for line in file.readlines()[1:]:   # Skip the header
         parts = line.split(file_separator)
         months.append(datetime.datetime.strptime(parts[0], dateformat))
         prices.append(float(parts[1]))
